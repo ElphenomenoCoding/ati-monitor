@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("ati")
 
 # === Config ===
-BOT_TOKEN = "6401233138:AAEvNpYI-e1Jz_IdsCotjEqC7MkN86aPY08"
+BOT_TOKEN = "8522190964:AAG81Z0ofp7HfdpXpFZrv6lB1Pzgh7ai5lQ"
 ATI_SEARCH = "https://loads.ati.su/webapi/public/v1.0/loads/search"
 ATI_SUGGEST = "https://loads.ati.su/gw/gis-dict/public/v1/autocomplete/suggestions"
 ATI_HEADERS = {
