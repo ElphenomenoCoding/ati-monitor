@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ATI Монитор Грузов</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Nunito', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3' },
+            d: { 0: '#09090b', 1: '#18181b', 2: '#27272a', 3: '#3f3f46', 4: '#52525b', 5: '#71717a', 6: '#a1a1aa', 7: '#d4d4d8', 8: '#e4e4e7', 9: '#f4f4f5' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .feed-scroll {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .touch-btn {
+      min-height: 48px;
+      min-width: 48px;
+    }
+
+    .pill-on {
+      background: #4f46e5 !important;
+      color: white !important;
+      border-color: #4f46e5 !important;
+    }
+
+    .big-check {
+      width: 22px;
+      height: 22px;
+      accent-color: #6366f1;
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      accent-color: #6366f1;
+    }
+
+    .glow-green {
+      box-shadow: 0 0 0 2px #22c55e, 0 0 16px rgba(34, 197, 94, 0.2);
+    }
+
+    .toast-anim {
+      animation: tup .25s ease;
+    }
+
+    @keyframes tup {
+      from {
+        transform: translateY(16px);
+        opacity: 0
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1
+      }
+    }
+
+    .dd-shadow {
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Mobile bottom safe area */
+    .mob-bottom {
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+  </style>
+</head>
+
+<body class="h-full bg-d-0 font-sans text-d-8 overflow-hidden">
+
+  <div id="app" class="h-full flex flex-col">
+
+    <!-- ===== HEADER ===== -->
+    <header class="bg-d-1 border-b border-d-2 px-4 py-2.5 flex items-center justify-between shrink-0 z-30">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center text-white text-lg">🚛</div>
+        <div>
+          <h1 class="text-base font-extrabold leading-tight text-d-9">ATI Монитор</h1>
+          <p class="text-[10px] text-d-5 hidden sm:block">Грузы с ATI.SU → Telegram</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="bot-badge" class="text-[11px] text-d-5 flex items-center gap-1.5"></div>
+        <div id="active-badge"
+          class="hidden bg-green-950 text-green-400 border border-green-800 rounded-full px-3 py-1 text-[11px] font-bold items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block"></span>
+          <span id="active-count">0</span> активных
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== BODY ===== -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+
+      <!-- LEFT SIDEBAR: Alarms + Bot Users -->
+      <aside class="w-full md:w-56 lg:w-60 bg-d-1 border-b md:border-b-0 md:border-r border-d-2 flex flex-col shrink-0">
+        <!-- Alarm list -->
+        <div id="alarm-list" class="flex md:flex-col gap-1 p-2 overflow-x-auto md:overflow-y-auto md:flex-1"></div>
+        <div class="p-2 border-t border-d-2">
+          <button onclick="addAlarm()"
+            class="touch-btn w-full py-2.5 rounded-lg border-2 border-dashed border-brand-700 text-brand-400 font-bold text-sm hover:bg-brand-950 transition">
+            + Новый будильник
+          </button>
+        </div>
+        <!-- Bot users -->
+        <div id="bot-users-panel" class="hidden md:block border-t border-d-2 p-2">
+          <div class="text-[10px] font-bold text-d-5 uppercase tracking-wider px-2 mb-1">👥 Пользователи бота</div>
+          <div id="bot-users-list" class="text-[11px] text-d-6 max-h-32 overflow-y-auto"></div>
+        </div>
+      </aside>
+
+      <!-- CENTER: Editor -->
+      <main id="main-area" class="flex-1 overflow-y-auto p-3 md:p-5 bg-d-0">
+        <div id="editor" class="max-w-2xl mx-auto pb-20 md:pb-4"></div>
+      </main>
+
+      <!-- RIGHT SIDEBAR: Feed (desktop) -->
+      <aside id="feed-sidebar" class="hidden md:flex w-72 lg:w-80 bg-d-1 border-l border-d-2 flex-col shrink-0">
+        <div class="p-3 border-b border-d-2 flex justify-between items-center">
+          <h3 class="font-bold text-sm text-d-6">📡 Лента</h3>
+          <button onclick="clearFeed()" class="text-[11px] text-d-5 hover:text-red-400 transition">Очистить</button>
+        </div>
+        <div id="feed-desktop" class="flex-1 overflow-y-auto p-2 feed-scroll"></div>
+      </aside>
+    </div>
+
+    <!-- ===== MOBILE BOTTOM NAV ===== -->
+    <nav id="mob-nav" class="md:hidden fixed bottom-0 left-0 right-0 bg-d-1 border-t border-d-2 z-50 flex mob-bottom">
+      <button onclick="setMobileView('config')" id="mob-tab-config"
+        class="flex-1 py-3.5 text-center text-sm font-bold text-brand-400 border-t-2 border-brand-500 transition">
+        ⚙️ Настройки
+      </button>
+      <button onclick="setMobileView('feed')" id="mob-tab-feed"
+        class="flex-1 py-3.5 text-center text-sm font-bold text-d-5 border-t-2 border-transparent transition">
+        📡 Лента <span id="feed-badge"
+          class="hidden bg-red-500 text-white text-[10px] rounded-full px-1.5 py-0.5 ml-1 align-middle">0</span>
+      </button>
+      <button onclick="setMobileView('users')" id="mob-tab-users"
+        class="flex-1 py-3.5 text-center text-sm font-bold text-d-5 border-t-2 border-transparent transition">
+        👥 Бот
+      </button>
+    </nav>
+
+    <!-- MOBILE FEED PANEL (hidden by default) -->
+    <div id="mob-feed-panel" class="md:hidden fixed inset-0 bg-d-0 z-40 flex flex-col" style="display:none">
+      <div class="bg-d-1 border-b border-d-2 p-3 flex justify-between items-center shrink-0" style="margin-top:0">
+        <h3 class="font-bold text-sm text-d-7">📡 Лента событий</h3>
+        <button onclick="clearFeed()" class="text-[11px] text-d-5">Очистить</button>
+      </div>
+      <div id="feed-mobile" class="flex-1 overflow-y-auto p-2 feed-scroll"></div>
+      <div class="h-16 shrink-0"></div><!-- spacer for bottom nav -->
+    </div>
+
+    <!-- MOBILE USERS PANEL -->
+    <div id="mob-users-panel" class="md:hidden fixed inset-0 bg-d-0 z-40 flex flex-col" style="display:none">
+      <div class="bg-d-1 border-b border-d-2 p-3 shrink-0">
+        <h3 class="font-bold text-sm text-d-7">👥 Пользователи бота</h3>
+        <p class="text-[11px] text-d-5 mt-1">Все кто отправил /start боту</p>
+      </div>
+      <div id="bot-users-mobile" class="flex-1 overflow-y-auto p-3"></div>
+      <div class="h-16 shrink-0"></div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toasts" class="fixed bottom-20 md:bottom-4 right-3 z-[60] flex flex-col gap-2"></div>
+
+  <script>
+    // =========================================================================
+    // STATE
+    // =========================================================================
+    let alarms = [], activeTab = null, ws = null, feedItems = [], suggestTimeout = null;
+    let mobileView = 'config', showAdvanced = false, unreadFeed = 0, botUsersList = [];
+
+    // =========================================================================
+    // API
+    // =========================================================================
+    const api = {
+      get: async u => (await fetch(u)).json(),
+      post: async (u, d) => (await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })).json(),
+      put: async (u, d) => (await fetch(u, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })).json(),
+      del: async u => fetch(u, { method: 'DELETE' }),
+    };
+
+    const defaultAlarm = () => ({
+      name: 'Новый будильник', active: false, telegram: '',
+      from_location: null, to_location: null,
+      weight_min: null, weight_max: null, volume_min: null, volume_max: null,
+      date_option: 'today', date_from: null,
+      body_types: [], cargo_types: [], loading_types: [],
+      payment_options: [], extra_options: [],
+      length_min: null, length_max: null, width_min: null, width_max: null,
+      height_min: null, height_max: null, pallets: null,
+      ellipse_search: false, route_length: false,
+      route_length_min: null, route_length_max: null, interval_seconds: 10,
+    });
+
+    // =========================================================================
+    // VALIDATION
+    // =========================================================================
+    function hasRoute(a) {
+      return (a.from_location && a.from_location.id) || (a.to_location && a.to_location.id);
+    }
+
+    // =========================================================================
+    // RENDER
+    // =========================================================================
+    function render() {
+      renderAlarmList();
+      renderEditor();
+      renderActiveBadge();
+      renderBotUsers();
+    }
+
+    function renderAlarmList() {
+      const el = document.getElementById('alarm-list');
+      el.innerHTML = alarms.map(a => `
+        <button onclick="selectTab('${a.id}')"
+            class="touch-btn w-full md:w-full flex-shrink-0 text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition
+            ${a.id === activeTab ? 'bg-d-2 ring-1 ring-brand-700' : 'hover:bg-d-2'}
+            ${a.active ? 'glow-green' : ''}">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active ? 'bg-green-500 animate-pulse' : 'bg-d-4'}"></span>
+            <span class="truncate font-semibold text-sm text-d-7">${esc(a.name)}</span>
+        </button>
+    `).join('');
+    }
+
+    function renderActiveBadge() {
+      const n = alarms.filter(a => a.active).length;
+      const b = document.getElementById('active-badge');
+      b.style.display = n > 0 ? 'inline-flex' : 'none';
+      document.getElementById('active-count').textContent = n;
+    }
+
+    function renderBotUsers() {
+      const html = botUsersList.length === 0
+        ? '<div class="text-d-5 text-[11px] px-2 py-2">Нет пользователей</div>'
+        : botUsersList.map(u => `
+            <div class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-d-2 transition">
+                <span class="w-2 h-2 rounded-full bg-green-600 shrink-0"></span>
+                <span class="text-d-7 font-semibold">@${esc(u.username)}</span>
+                <span class="text-d-5 text-[10px]">${esc(u.first_name)}</span>
+            </div>
+        `).join('');
+      // Desktop
+      const dEl = document.getElementById('bot-users-list');
+      if (dEl) dEl.innerHTML = html;
+      // Mobile
+      const mEl = document.getElementById('bot-users-mobile');
+      if (mEl) mEl.innerHTML = `<div class="space-y-1">${html}</div>`;
+    }
+
+    function renderEditor() {
+      const el = document.getElementById('editor');
+      const a = alarms.find(x => x.id === activeTab);
+      if (!a) { el.innerHTML = '<div class="text-center text-d-5 py-20 text-sm">Выберите или создайте будильник</div>'; return; }
+
+      const routeOk = hasRoute(a);
+      const routeWarn = !routeOk ? `<div class="bg-amber-950 border border-amber-800 text-amber-300 text-sm rounded-lg p-3 mb-4 font-semibold">⚠️ Укажите хотя бы один город (Откуда или Куда) чтобы запустить мониторинг</div>` : '';
+
+      el.innerHTML = `
+    <div class="bg-d-1 rounded-2xl border border-d-2 overflow-hidden">
+
+        <!-- Top bar: name + buttons -->
+        <div class="p-4 border-b border-d-2 flex flex-wrap items-center gap-3">
+            <span class="w-3.5 h-3.5 rounded-full shrink-0 ${a.active ? 'bg-green-500 animate-pulse shadow-lg shadow-green-900' : 'bg-d-4'}"></span>
+            <input class="flex-1 min-w-0 text-lg font-extrabold bg-transparent outline-none text-d-9 border-b-2 border-transparent focus:border-brand-500 px-1 py-0.5"
+                value="${esc(a.name)}" onchange="updateField('name', this.value)" />
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="testSearch()" ${!routeOk ? 'disabled' : ''} class="touch-btn px-4 py-2.5 rounded-xl text-sm font-bold transition
+                    ${routeOk ? 'bg-amber-950 text-amber-400 border border-amber-800 hover:bg-amber-900' : 'bg-d-2 text-d-4 cursor-not-allowed border border-d-3'}">
+                    🔍 Тест
+                </button>
+                ${a.active
+          ? `<button onclick="toggleAlarm()" class="touch-btn px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition shadow-lg shadow-red-900/30">⏹ Стоп</button>`
+          : `<button onclick="toggleAlarm()" ${!routeOk ? 'disabled' : ''} class="touch-btn px-5 py-2.5 rounded-xl font-bold text-sm transition shadow-lg
+                        ${routeOk ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-900/30' : 'bg-d-2 text-d-4 cursor-not-allowed shadow-none border border-d-3'}">
+                        ▶ Старт</button>`
+        }
+                <button onclick="deleteCurrentAlarm()" class="touch-btn px-3 py-2.5 rounded-xl bg-d-2 text-red-400 hover:bg-red-950 hover:text-red-300 transition text-sm border border-d-3">✕</button>
+            </div>
+        </div>
+
+        <!-- Telegram -->
+        <div class="p-4 border-b border-d-2 flex items-center gap-3 bg-brand-950/20">
+            <svg class="w-5 h-5 text-brand-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.53 8.09l-1.77 8.35c-.13.6-.49.74-.99.46l-2.74-2.02-1.32 1.27c-.15.15-.27.27-.56.27l.2-2.79 5.07-4.58c.22-.2-.05-.3-.34-.12l-6.27 3.95-2.7-.84c-.59-.18-.6-.59.12-.87l10.56-4.07c.49-.18.91.12.74.99z"/>
+            </svg>
+            <span class="text-d-5 text-base font-bold">@</span>
+            <input class="flex-1 min-w-0 bg-d-2 border border-d-3 rounded-lg px-3 py-2.5 text-sm font-medium outline-none text-d-8 focus:border-brand-500 focus:ring-1 focus:ring-brand-800 transition placeholder-d-4"
+                placeholder="имя пользователя Telegram" value="${esc(a.telegram)}"
+                onchange="updateField('telegram', this.value.replace('@',''))" />
+        </div>
+
+        <!-- SIMPLE FILTERS -->
+        <div class="p-4 space-y-4">
+            ${routeWarn}
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider">📍 Маршрут</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${cityField('from_location', 'Откуда (город)', a.from_location)}
+                ${cityField('to_location', 'Куда (город, необязательно)', a.to_location)}
+            </div>
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">📅 Дата загрузки</div>
+            <div class="flex gap-2 flex-wrap">
+                ${[['today', '📅 Сегодня'], ['tomorrow', '📅 Завтра'], ['manual', '📅 Выбрать']].map(([v, l]) =>
+          `<button onclick="updateField('date_option','${v}')"
+                        class="touch-btn px-4 py-2.5 rounded-lg text-sm font-bold transition border
+                        ${a.date_option === v ? 'pill-on' : 'bg-d-2 border-d-3 text-d-6 hover:border-brand-700'}">${l}</button>`
+        ).join('')}
+            </div>
+            ${a.date_option === 'manual' ? `
+                <input type="date" class="bg-d-2 border border-d-3 rounded-lg px-3 py-2.5 text-sm text-d-8 outline-none focus:border-brand-500 w-44"
+                    value="${a.date_from || ''}" onchange="updateField('date_from', this.value)" />
+            ` : ''}
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">⚖️ Вес и объём</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${minmax('Вес', 'т', a.weight_min, a.weight_max, 'weight_min', 'weight_max')}
+                ${minmax('Объём', 'м³', a.volume_min, a.volume_max, 'volume_min', 'volume_max')}
+            </div>
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">🚛 Тип кузова</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ${cbs([
+          { v: '1', l: '🏕 Тент' }, { v: '4', l: '❄️ Рефрижератор' },
+          { v: '91', l: '📦 Закрытый + изотерм' }, { v: '844424930131980', l: '🧊 Реф. + изотерм' },
+          { v: '70368744191104', l: '🔓 Все открытые' }, { v: '844424930132059', l: '🔒 Закрытый + термос' },
+        ], 'body_types', a.body_types)}
+            </div>
+        </div>
+
+        <!-- ADVANCED TOGGLE -->
+        <div class="border-t border-d-2">
+            <button onclick="showAdvanced=!showAdvanced; render()"
+                class="w-full px-4 py-3.5 text-sm font-bold text-brand-400 hover:bg-brand-950/30 transition flex items-center justify-center gap-2">
+                ${showAdvanced ? '▲ Скрыть доп. фильтры' : '▼ Показать доп. фильтры'}
+            </button>
+        </div>
+
+        <!-- ADVANCED FILTERS -->
+        ${showAdvanced ? `
+        <div class="p-4 space-y-4 bg-d-0/30 border-t border-d-2">
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider">📦 Тип груза</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ${cbs([
+          { v: '80', l: 'Доска' }, { v: '42', l: 'Стройматериалы' },
+          { v: '46', l: 'ТНП' }, { v: '34', l: 'Продукты' },
+          { v: '87', l: 'Вагонка' }, { v: '35', l: 'Оборудование' },
+          { v: '36', l: 'Мебель' }, { v: '37', l: 'Металл' }, { v: '38', l: 'Тара' },
+        ], 'cargo_types', a.cargo_types)}
+            </div>
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">🏗 Тип загрузки</div>
+            <div class="grid grid-cols-2 gap-2">
+                ${cbs([
+          { v: '1', l: '⬆️ Верхняя' }, { v: '4', l: '⬅️ Задняя' },
+          { v: '8', l: '📥 Полная' }, { v: '65536', l: '❓ Не указано' },
+        ], 'loading_types', a.loading_types)}
+            </div>
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">💳 Оплата</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ${cbs([
+          { v: '1', l: '💵 Ставка' }, { v: '2', l: '💳 Предоплата' },
+          { v: '8', l: '💰 Наличные' }, { v: '512', l: '🚫 Без ставки' },
+          { v: '1024', l: '✅ С НДС' }, { v: '2048', l: '❌ Без НДС' },
+        ], 'payment_options', a.payment_options)}
+            </div>
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">📐 Габариты</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                ${minmax('Длина', 'м', a.length_min, a.length_max, 'length_min', 'length_max')}
+                ${minmax('Ширина', 'м', a.width_min, a.width_max, 'width_min', 'width_max')}
+                ${minmax('Высота', 'м', a.height_min, a.height_max, 'height_min', 'height_max')}
+            </div>
+            <div class="mt-2">
+                <label class="text-[11px] font-bold text-d-5 uppercase tracking-wider block mb-1">Палеты</label>
+                <input type="number" class="bg-d-2 border border-d-3 rounded-lg px-3 py-2.5 text-sm text-d-8 w-28 outline-none focus:border-brand-500 placeholder-d-4"
+                    placeholder="кол-во" value="${a.pallets || ''}"
+                    onchange="updateField('pallets', this.value?parseInt(this.value):null)" />
+            </div>
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">⚙️ Доп. параметры</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ${cbs([
+          { v: '4', l: '🔄 Обратная загрузка' },
+          { v: '128', l: '🚫 Без постоянных' },
+          { v: '256', l: '📏 Коники' },
+          { v: 'excludeTenders', l: '🚫 Без тендеров' },
+          { v: 'teamDriving', l: '👥 Скрыть экипаж (2 водит.)' },
+          { v: 'withAdr', l: '☢️ АДР (опасные грузы)' },
+        ], 'extra_options', a.extra_options)}
+            </div>
+
+            <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider pt-2">⏱ Интервал проверки</div>
+            <div class="flex items-center gap-4">
+                <input type="range" min="5" max="120" value="${a.interval_seconds}" class="flex-1 h-2"
+                    oninput="document.getElementById('iv').textContent=this.value+'с'"
+                    onchange="updateField('interval_seconds', parseInt(this.value))" />
+                <span id="iv" class="text-lg font-extrabold text-brand-400 w-12 text-right">${a.interval_seconds}с</span>
+            </div>
+            <p class="text-[11px] text-d-5">Как часто проверять ATI.SU (5–120 сек)</p>
+        </div>
+        ` : ''}
+    </div>`;
+    }
+
+    // =========================================================================
+    // TEMPLATE HELPERS
+    // =========================================================================
+    function cityField(field, ph, value) {
+      const disp = value ? (value.address || value.name || '') : '';
+      return `
+    <div class="relative" id="city-${field}">
+        <input class="w-full bg-d-2 border border-d-3 rounded-lg px-3 py-2.5 text-sm font-medium outline-none text-d-8 focus:border-brand-500 focus:ring-1 focus:ring-brand-800 transition placeholder-d-4 pr-8"
+            placeholder="${ph}" value="${esc(disp)}"
+            oninput="handleSuggest('${field}', this.value)"
+            onfocus="handleSuggest('${field}', this.value)" />
+        ${value ? `<button onclick="event.stopPropagation(); updateField('${field}', null)" class="absolute right-2 top-1/2 -translate-y-1/2 text-d-5 hover:text-red-400 text-lg leading-none">×</button>` : ''}
+        <div id="dd-${field}" class="hidden absolute top-full left-0 right-0 mt-1 bg-d-1 border border-d-3 rounded-lg z-50 max-h-52 overflow-y-auto dd-shadow"></div>
+    </div>`;
+    }
+
+    function minmax(label, unit, lo, hi, loF, hiF) {
+      return `
+    <div>
+        <label class="text-[11px] font-bold text-d-5 block mb-1">${label} (${unit})</label>
+        <div class="flex items-center gap-2">
+            <input type="number" class="flex-1 min-w-0 bg-d-2 border border-d-3 rounded-lg px-3 py-2.5 text-sm text-d-8 outline-none focus:border-brand-500 placeholder-d-4"
+                placeholder="от" value="${lo ?? ''}"
+                onchange="updateField('${loF}', this.value?parseFloat(this.value):null)" />
+            <span class="text-d-5 font-bold">—</span>
+            <input type="number" class="flex-1 min-w-0 bg-d-2 border border-d-3 rounded-lg px-3 py-2.5 text-sm text-d-8 outline-none focus:border-brand-500 placeholder-d-4"
+                placeholder="до" value="${hi ?? ''}"
+                onchange="updateField('${hiF}', this.value?parseFloat(this.value):null)" />
+        </div>
+    </div>`;
+    }
+
+    function cbs(opts, field, sel) {
+      return opts.map(o => `
+        <label class="flex items-center gap-3 p-2.5 rounded-lg border transition cursor-pointer select-none
+            ${sel.includes(o.v) ? 'bg-brand-950 border-brand-700 text-brand-200' : 'bg-d-2 border-d-3 text-d-6 hover:border-d-4'}">
+            <input type="checkbox" class="big-check rounded" ${sel.includes(o.v) ? 'checked' : ''}
+                onchange="toggleArr('${field}','${o.v}',this.checked)" />
+            <span class="text-sm font-semibold">${o.l}</span>
+        </label>
+    `).join('');
+    }
+
+    // =========================================================================
+    // CITY AUTOCOMPLETE
+    // =========================================================================
+    function handleSuggest(field, val) {
+      clearTimeout(suggestTimeout);
+      const dd = document.getElementById(`dd-${field}`);
+      if (val.length < 2) { dd.classList.add('hidden'); return; }
+      suggestTimeout = setTimeout(async () => {
+        try {
+          const data = await api.post('/api/suggest', { prefix: val });
+          const sugs = data.suggestions || [];
+          if (!sugs.length) { dd.classList.add('hidden'); return; }
+          dd.innerHTML = sugs.map((s, i) => {
+            const nm = s.city?.name || s.region?.name || '';
+            const ad = s.address || '';
+            return `<div onclick="pickCity('${field}',${i})" class="px-3 py-2.5 cursor-pointer hover:bg-d-2 transition border-b border-d-2 last:border-0">
+                    <div class="font-bold text-sm text-d-8">${esc(nm)}</div>
+                    <div class="text-[11px] text-d-5">${esc(ad)}</div>
+                </div>`;
+          }).join('');
+          dd.classList.remove('hidden');
+          dd._sugs = sugs;
+        } catch (e) { console.error(e); }
+      }, 300);
+    }
+
+    function pickCity(field, idx) {
+      const dd = document.getElementById(`dd-${field}`);
+      const s = dd._sugs[idx];
+      const sugType = s.type;
+      let id, name;
+      if (sugType === 1 && s.city) { id = s.city.id; name = s.city.name; }
+      else { id = s.region?.id; name = s.region?.name; }
+      const searchType = sugType === 1 ? 2 : 1;
+      updateField(field, { id, type: searchType, name, address: s.address || name });
+      dd.classList.add('hidden');
+    }
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('[id^="city-"]'))
+        document.querySelectorAll('[id^="dd-"]').forEach(d => d.classList.add('hidden'));
+    });
+
+    // =========================================================================
+    // ACTIONS
+    // =========================================================================
+    function selectTab(id) { activeTab = id; render(); }
+
+    async function addAlarm() {
+      const res = await api.post('/api/alarms', defaultAlarm());
+      alarms.push(res.alarm);
+      activeTab = res.alarm.id;
+      render();
+    }
+
+    async function deleteCurrentAlarm() {
+      if (!confirm('Удалить этот будильник?')) return;
+      await api.del(`/api/alarms/${activeTab}`);
+      alarms = alarms.filter(a => a.id !== activeTab);
+      activeTab = alarms[0]?.id || null;
+      render();
+    }
+
+    async function toggleAlarm() {
+      const a = alarms.find(x => x.id === activeTab);
+      if (!a) return;
+      if (a.active) {
+        await api.post(`/api/alarms/${a.id}/stop`);
+        a.active = false;
+        toast('Мониторинг остановлен', 'red');
+      } else {
+        if (!hasRoute(a)) { toast('Укажите хотя бы один город!', 'amber'); return; }
+        if (!a.telegram) { toast('Введите имя пользователя Telegram!', 'amber'); return; }
+        a.active = true;
+        await api.put(`/api/alarms/${a.id}`, a);
+        toast('Мониторинг запущен!', 'green');
+      }
+      render();
+    }
+
+    function updateField(field, value) {
+      const a = alarms.find(x => x.id === activeTab);
+      if (!a) return;
+      a[field] = value;
+      clearTimeout(a._st);
+      a._st = setTimeout(() => api.put(`/api/alarms/${a.id}`, a), 500);
+      render();
+    }
+
+    function toggleArr(field, val, checked) {
+      const a = alarms.find(x => x.id === activeTab);
+      if (!a) return;
+      if (checked) { if (!a[field].includes(val)) a[field].push(val); }
+      else { a[field] = a[field].filter(v => v !== val); }
+      clearTimeout(a._st);
+      a._st = setTimeout(() => api.put(`/api/alarms/${a.id}`, a), 500);
+      render();
+    }
+
+    async function testSearch() {
+      const a = alarms.find(x => x.id === activeTab);
+      if (!a || !hasRoute(a)) { toast('Укажите хотя бы один город!', 'amber'); return; }
+      addFeed('status', 'Тест', '🔍 Поиск...');
+      try {
+        const r = await api.post('/api/test-search', a);
+        const cnt = r.loads?.length || 0;
+        addFeed('status', 'Тест', `Найдено ${cnt} грузов`);
+        for (const ld of (r.loads || [])) addFeed('load', a.name, ld.message);
+        toast(`Найдено ${cnt} грузов`, 'brand');
+      } catch (e) {
+        addFeed('error', 'Тест', e.message);
+        toast('Ошибка поиска', 'red');
+      }
+    }
+
+    // =========================================================================
+    // FEED
+    // =========================================================================
+    function addFeed(type, name, msg) {
+      feedItems.unshift({ type, name, msg, time: new Date().toLocaleTimeString('ru-RU') });
+      if (feedItems.length > 100) feedItems.length = 100;
+      if (mobileView !== 'feed') unreadFeed++;
+      renderFeed();
+    }
+
+    function clearFeed() { feedItems = []; unreadFeed = 0; renderFeed(); }
+
+    function renderFeed() {
+      const html = feedItems.length === 0
+        ? '<div class="text-center text-d-5 py-10 text-sm">Нет событий. Запустите мониторинг.</div>'
+        : feedItems.map(f => {
+          const cls = { load: 'border-l-[3px] border-brand-500 bg-brand-950/30', error: 'border-l-[3px] border-red-500 bg-red-950/30', status: 'bg-d-2/50' };
+          return `<div class="p-2.5 rounded-lg mb-1.5 text-xs ${cls[f.type] || ''}">
+                <span class="text-d-5">${f.time}</span>
+                <span class="ml-1.5 bg-brand-900 text-brand-300 px-1.5 py-0.5 rounded text-[10px] font-bold">${esc(f.name)}</span>
+                <div class="mt-1 leading-relaxed text-[13px] text-d-7">${f.msg}</div>
+            </div>`;
+        }).join('');
+
+      const dEl = document.getElementById('feed-desktop');
+      const mEl = document.getElementById('feed-mobile');
+      if (dEl) dEl.innerHTML = html;
+      if (mEl) mEl.innerHTML = html;
+
+      const badge = document.getElementById('feed-badge');
+      if (badge) {
+        if (unreadFeed > 0) { badge.classList.remove('hidden'); badge.textContent = unreadFeed; }
+        else badge.classList.add('hidden');
+      }
+    }
+
+    // =========================================================================
+    // MOBILE VIEW SWITCHING (fixed bug)
+    // =========================================================================
+    function setMobileView(v) {
+      mobileView = v;
+
+      // Hide all panels
+      document.getElementById('main-area').style.display = 'none';
+      document.getElementById('mob-feed-panel').style.display = 'none';
+      document.getElementById('mob-users-panel').style.display = 'none';
+
+      // Show selected
+      if (v === 'config') document.getElementById('main-area').style.display = '';
+      else if (v === 'feed') document.getElementById('mob-feed-panel').style.display = 'flex';
+      else if (v === 'users') document.getElementById('mob-users-panel').style.display = 'flex';
+
+      // Tab styling
+      ['config', 'feed', 'users'].forEach(t => {
+        const btn = document.getElementById(`mob-tab-${t}`);
+        if (!btn) return;
+        if (t === v) {
+          btn.className = 'flex-1 py-3.5 text-center text-sm font-bold text-brand-400 border-t-2 border-brand-500 transition';
+        } else {
+          btn.className = 'flex-1 py-3.5 text-center text-sm font-bold text-d-5 border-t-2 border-transparent transition';
+        }
+      });
+
+      if (v === 'feed') { unreadFeed = 0; renderFeed(); }
+    }
+
+    // =========================================================================
+    // TOAST
+    // =========================================================================
+    function toast(msg, color = 'brand') {
+      const el = document.getElementById('toasts');
+      const c = { brand: 'bg-brand-600 text-white', green: 'bg-green-600 text-white', red: 'bg-red-600 text-white', amber: 'bg-amber-600 text-white' };
+      const d = document.createElement('div');
+      d.className = `toast-anim px-4 py-2.5 rounded-lg font-bold text-sm shadow-xl ${c[color] || c.brand}`;
+      d.textContent = msg;
+      el.appendChild(d);
+      setTimeout(() => d.remove(), 3000);
+    }
+
+    // =========================================================================
+    // WEBSOCKET
+    // =========================================================================
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}/ws`);
+      ws.onmessage = e => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.type === 'new_load') addFeed('load', d.alarm_name || '?', d.message);
+          else if (d.type === 'status') addFeed('status', alarms.find(a => a.id === d.alarm_id)?.name || '?',
+            `Проверено: ${d.new_count} новых (всего ${d.known_count})`);
+          else if (d.type === 'error') addFeed('error', alarms.find(a => a.id === d.alarm_id)?.name || '?', d.message);
+        } catch (err) { }
+      };
+      ws.onclose = () => setTimeout(connectWS, 3000);
+      setInterval(() => { if (ws && ws.readyState === WebSocket.OPEN) ws.send('ping'); }, 30000);
+    }
+
+    // =========================================================================
+    // UTILS
+    // =========================================================================
+    function esc(s) { return s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : ''; }
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    async function init() {
+      // Bot status
+      try {
+        const bs = await api.get('/api/bot-status');
+        const el = document.getElementById('bot-badge');
+        el.innerHTML = bs.configured
+          ? `<span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> @${bs.bot_username}`
+          : `<span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Бот не настроен`;
+      } catch (e) { }
+
+      // Bot users
+      try {
+        const bu = await api.get('/api/bot-users');
+        botUsersList = bu.users || [];
+      } catch (e) { }
+
+      // Alarms
+      try { alarms = (await api.get('/api/alarms')).alarms || []; } catch (e) { }
+      if (alarms.length === 0) {
+        const r = await api.post('/api/alarms', defaultAlarm());
+        alarms.push(r.alarm);
+      }
+      activeTab = alarms[0].id;
+      render();
+      connectWS();
+
+      // Refresh bot users periodically
+      setInterval(async () => {
+        try {
+          const bu = await api.get('/api/bot-users');
+          botUsersList = bu.users || [];
+          renderBotUsers();
+        } catch (e) { }
+      }, 30000);
+    }
+
+    init();
+  </script>
+</body>
+
+</html>
