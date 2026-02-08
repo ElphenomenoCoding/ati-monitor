@@ -7,7 +7,7 @@ import asyncio, json, logging, time, uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
-
+import os
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("ati")
 
 # === Config ===
-BOT_TOKEN = "8522190964:AAG81Z0ofp7HfdpXpFZrv6lB1Pzgh7ai5lQ"
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 ATI_SEARCH = "https://loads.ati.su/webapi/public/v1.0/loads/search"
 ATI_SUGGEST = "https://loads.ati.su/gw/gis-dict/public/v1/autocomplete/suggestions"
 ATI_HEADERS = {
