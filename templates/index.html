@@ -15,7 +15,7 @@
         extend: {
           fontFamily: { sans: ['Nunito', 'system-ui', 'sans-serif'] },
           colors: {
-            brand: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3' },
+            brand: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81', 950: '#1e1b4b' },
             d: { 0: '#09090b', 1: '#18181b', 2: '#27272a', 3: '#3f3f46', 4: '#52525b', 5: '#71717a', 6: '#a1a1aa', 7: '#d4d4d8', 8: '#e4e4e7', 9: '#f4f4f5' },
           }
         }
@@ -77,18 +77,88 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
 
-    /* Mobile bottom safe area */
     .mob-bottom {
       padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    /* Welcome overlay */
+    .welcome-bg {
+      background: radial-gradient(ellipse at 50% 0%, #1e1b4b 0%, #09090b 70%);
+    }
+
+    /* Alarm tab mobile - horizontal scroll with snap */
+    .alarm-scroll {
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .alarm-scroll>* {
+      scroll-snap-align: start;
     }
   </style>
 </head>
 
 <body class="h-full bg-d-0 font-sans text-d-8 overflow-hidden">
 
-  <div id="app" class="h-full flex flex-col">
+  <!-- ============================================================= -->
+  <!-- WELCOME / ONBOARDING OVERLAY                                   -->
+  <!-- ============================================================= -->
+  <div id="welcome-overlay" class="fixed inset-0 z-[100] welcome-bg flex items-center justify-center p-4">
+    <div class="bg-d-1 border border-d-3 rounded-2xl p-6 md:p-10 max-w-lg w-full text-center shadow-2xl">
+      <div class="text-5xl mb-4">🚛</div>
+      <h1 class="text-2xl md:text-3xl font-extrabold text-d-9 mb-2">ATI Монитор Грузов</h1>
+      <p class="text-d-5 text-sm mb-6">Автоматический поиск грузов с ATI.SU<br>с уведомлениями в Telegram</p>
 
-    <!-- ===== HEADER ===== -->
+      <div class="bg-d-2 border border-d-3 rounded-xl p-5 text-left mb-6">
+        <h3 class="font-bold text-d-8 text-sm mb-3">⚠️ Перед началом работы:</h3>
+        <div class="space-y-3">
+          <div class="flex items-start gap-3">
+            <span class="text-brand-400 font-bold text-lg leading-none mt-0.5">1</span>
+            <div>
+              <p class="text-d-7 text-sm font-semibold">Откройте Telegram и найдите бота:</p>
+              <a href="https://t.me/atsusay_bot" target="_blank"
+                class="inline-flex items-center gap-2 mt-1.5 bg-brand-950 border border-brand-700 text-brand-300 px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-900 transition">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.53 8.09l-1.77 8.35c-.13.6-.49.74-.99.46l-2.74-2.02-1.32 1.27c-.15.15-.27.27-.56.27l.2-2.79 5.07-4.58c.22-.2-.05-.3-.34-.12l-6.27 3.95-2.7-.84c-.59-.18-.6-.59.12-.87l10.56-4.07c.49-.18.91.12.74.99z" />
+                </svg>
+                @atsusay_bot
+              </a>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-brand-400 font-bold text-lg leading-none mt-0.5">2</span>
+            <p class="text-d-7 text-sm font-semibold">Нажмите <span
+                class="bg-brand-700 text-white px-2 py-0.5 rounded text-xs font-bold">START</span> или отправьте <span
+                class="bg-d-3 text-d-8 px-2 py-0.5 rounded text-xs font-mono">/start</span></p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-brand-400 font-bold text-lg leading-none mt-0.5">3</span>
+            <p class="text-d-7 text-sm font-semibold">Вернитесь сюда и подтвердите ниже</p>
+          </div>
+        </div>
+      </div>
+
+      <label
+        class="flex items-center justify-center gap-3 cursor-pointer select-none mb-5 p-3 rounded-xl border border-d-3 hover:border-brand-700 transition"
+        id="welcome-check-label">
+        <input type="checkbox" id="welcome-check" class="big-check rounded" onchange="checkWelcome()" />
+        <span class="text-sm font-bold text-d-7">Я отправил(а) /start боту @atsusay_bot</span>
+      </label>
+
+      <button id="welcome-btn" disabled onclick="dismissWelcome()" class="touch-btn w-full py-3.5 rounded-xl font-extrabold text-base transition
+            bg-d-3 text-d-5 cursor-not-allowed">
+        Продолжить
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- MAIN APP (hidden until welcome dismissed)                      -->
+  <!-- ============================================================= -->
+  <div id="app" class="h-full flex flex-col" style="display:none">
+
+    <!-- HEADER -->
     <header class="bg-d-1 border-b border-d-2 px-4 py-2.5 flex items-center justify-between shrink-0 z-30">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center text-white text-lg">🚛</div>
@@ -107,20 +177,28 @@
       </div>
     </header>
 
-    <!-- ===== BODY ===== -->
+    <!-- BODY -->
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
 
       <!-- LEFT SIDEBAR: Alarms + Bot Users -->
       <aside class="w-full md:w-56 lg:w-60 bg-d-1 border-b md:border-b-0 md:border-r border-d-2 flex flex-col shrink-0">
-        <!-- Alarm list -->
-        <div id="alarm-list" class="flex md:flex-col gap-1 p-2 overflow-x-auto md:overflow-y-auto md:flex-1"></div>
+        <!-- Mobile: horizontal alarm selector with clear labels -->
+        <div class="md:hidden px-2 pt-2 pb-1">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-bold text-d-5 uppercase tracking-wider">Будильники</span>
+            <span class="text-[10px] text-d-4">← листайте →</span>
+          </div>
+          <div id="alarm-list-mobile" class="flex gap-2 overflow-x-auto alarm-scroll pb-1"></div>
+        </div>
+        <!-- Desktop: vertical alarm list -->
+        <div id="alarm-list-desktop" class="hidden md:flex md:flex-col gap-1 p-2 overflow-y-auto md:flex-1"></div>
         <div class="p-2 border-t border-d-2">
           <button onclick="addAlarm()"
             class="touch-btn w-full py-2.5 rounded-lg border-2 border-dashed border-brand-700 text-brand-400 font-bold text-sm hover:bg-brand-950 transition">
             + Новый будильник
           </button>
         </div>
-        <!-- Bot users -->
+        <!-- Bot users (desktop) -->
         <div id="bot-users-panel" class="hidden md:block border-t border-d-2 p-2">
           <div class="text-[10px] font-bold text-d-5 uppercase tracking-wider px-2 mb-1">👥 Пользователи бота</div>
           <div id="bot-users-list" class="text-[11px] text-d-6 max-h-32 overflow-y-auto"></div>
@@ -142,7 +220,7 @@
       </aside>
     </div>
 
-    <!-- ===== MOBILE BOTTOM NAV ===== -->
+    <!-- MOBILE BOTTOM NAV -->
     <nav id="mob-nav" class="md:hidden fixed bottom-0 left-0 right-0 bg-d-1 border-t border-d-2 z-50 flex mob-bottom">
       <button onclick="setMobileView('config')" id="mob-tab-config"
         class="flex-1 py-3.5 text-center text-sm font-bold text-brand-400 border-t-2 border-brand-500 transition">
@@ -159,14 +237,14 @@
       </button>
     </nav>
 
-    <!-- MOBILE FEED PANEL (hidden by default) -->
+    <!-- MOBILE FEED PANEL -->
     <div id="mob-feed-panel" class="md:hidden fixed inset-0 bg-d-0 z-40 flex flex-col" style="display:none">
-      <div class="bg-d-1 border-b border-d-2 p-3 flex justify-between items-center shrink-0" style="margin-top:0">
+      <div class="bg-d-1 border-b border-d-2 p-3 flex justify-between items-center shrink-0">
         <h3 class="font-bold text-sm text-d-7">📡 Лента событий</h3>
         <button onclick="clearFeed()" class="text-[11px] text-d-5">Очистить</button>
       </div>
       <div id="feed-mobile" class="flex-1 overflow-y-auto p-2 feed-scroll"></div>
-      <div class="h-16 shrink-0"></div><!-- spacer for bottom nav -->
+      <div class="h-16 shrink-0"></div>
     </div>
 
     <!-- MOBILE USERS PANEL -->
@@ -189,6 +267,34 @@
     // =========================================================================
     let alarms = [], activeTab = null, ws = null, feedItems = [], suggestTimeout = null;
     let mobileView = 'config', showAdvanced = false, unreadFeed = 0, botUsersList = [];
+
+    // =========================================================================
+    // WELCOME SCREEN
+    // =========================================================================
+    function checkWelcome() {
+      const checked = document.getElementById('welcome-check').checked;
+      const btn = document.getElementById('welcome-btn');
+      if (checked) {
+        btn.disabled = false;
+        btn.className = 'touch-btn w-full py-3.5 rounded-xl font-extrabold text-base transition bg-brand-600 text-white hover:bg-brand-700 shadow-lg shadow-brand-900/40 cursor-pointer';
+      } else {
+        btn.disabled = true;
+        btn.className = 'touch-btn w-full py-3.5 rounded-xl font-extrabold text-base transition bg-d-3 text-d-5 cursor-not-allowed';
+      }
+    }
+
+    function dismissWelcome() {
+      document.getElementById('welcome-overlay').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      localStorage.setItem('ati_welcome_done', '1');
+      initApp();
+    }
+
+    // Check if already accepted
+    if (localStorage.getItem('ati_welcome_done') === '1') {
+      document.getElementById('welcome-overlay').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }
 
     // =========================================================================
     // API
@@ -231,16 +337,38 @@
     }
 
     function renderAlarmList() {
-      const el = document.getElementById('alarm-list');
-      el.innerHTML = alarms.map(a => `
-        <button onclick="selectTab('${a.id}')"
-            class="touch-btn w-full md:w-full flex-shrink-0 text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition
-            ${a.id === activeTab ? 'bg-d-2 ring-1 ring-brand-700' : 'hover:bg-d-2'}
-            ${a.active ? 'glow-green' : ''}">
-            <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active ? 'bg-green-500 animate-pulse' : 'bg-d-4'}"></span>
-            <span class="truncate font-semibold text-sm text-d-7">${esc(a.name)}</span>
-        </button>
-    `).join('');
+      // Mobile: big numbered cards
+      const mEl = document.getElementById('alarm-list-mobile');
+      if (mEl) {
+        mEl.innerHTML = alarms.map((a, i) => `
+            <button onclick="selectTab('${a.id}')"
+                class="flex-shrink-0 w-36 px-3 py-3 rounded-xl flex flex-col items-start gap-1 transition border-2
+                ${a.id === activeTab ? 'bg-brand-950 border-brand-600 ring-1 ring-brand-500' : 'bg-d-2 border-d-3 hover:border-d-4'}
+                ${a.active ? 'glow-green' : ''}">
+                <div class="flex items-center gap-2 w-full">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active ? 'bg-green-500 animate-pulse' : 'bg-d-4'}"></span>
+                    <span class="text-[10px] font-bold text-d-5 uppercase">№${i + 1}</span>
+                </div>
+                <span class="truncate font-bold text-sm text-d-8 w-full text-left">${esc(a.name)}</span>
+                ${a.active ? '<span class="text-[10px] text-green-400 font-bold">● Активен</span>' : '<span class="text-[10px] text-d-5">Остановлен</span>'}
+            </button>
+        `).join('');
+      }
+
+      // Desktop: vertical list
+      const dEl = document.getElementById('alarm-list-desktop');
+      if (dEl) {
+        dEl.innerHTML = alarms.map((a, i) => `
+            <button onclick="selectTab('${a.id}')"
+                class="touch-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 transition
+                ${a.id === activeTab ? 'bg-d-2 ring-1 ring-brand-700' : 'hover:bg-d-2'}
+                ${a.active ? 'glow-green' : ''}">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0 ${a.active ? 'bg-green-500 animate-pulse' : 'bg-d-4'}"></span>
+                <span class="text-d-5 text-xs font-bold">${i + 1}.</span>
+                <span class="truncate font-semibold text-sm text-d-7">${esc(a.name)}</span>
+            </button>
+        `).join('');
+      }
     }
 
     function renderActiveBadge() {
@@ -260,10 +388,8 @@
                 <span class="text-d-5 text-[10px]">${esc(u.first_name)}</span>
             </div>
         `).join('');
-      // Desktop
       const dEl = document.getElementById('bot-users-list');
       if (dEl) dEl.innerHTML = html;
-      // Mobile
       const mEl = document.getElementById('bot-users-mobile');
       if (mEl) mEl.innerHTML = `<div class="space-y-1">${html}</div>`;
     }
@@ -279,7 +405,7 @@
       el.innerHTML = `
     <div class="bg-d-1 rounded-2xl border border-d-2 overflow-hidden">
 
-        <!-- Top bar: name + buttons -->
+        <!-- Top bar -->
         <div class="p-4 border-b border-d-2 flex flex-wrap items-center gap-3">
             <span class="w-3.5 h-3.5 rounded-full shrink-0 ${a.active ? 'bg-green-500 animate-pulse shadow-lg shadow-green-900' : 'bg-d-4'}"></span>
             <input class="flex-1 min-w-0 text-lg font-extrabold bg-transparent outline-none text-d-9 border-b-2 border-transparent focus:border-brand-500 px-1 py-0.5"
@@ -357,10 +483,8 @@
             </button>
         </div>
 
-        <!-- ADVANCED FILTERS -->
         ${showAdvanced ? `
         <div class="p-4 space-y-4 bg-d-0/30 border-t border-d-2">
-
             <div class="text-[11px] font-bold text-d-5 uppercase tracking-wider">📦 Тип груза</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 ${cbs([
@@ -607,12 +731,10 @@
                 <div class="mt-1 leading-relaxed text-[13px] text-d-7">${f.msg}</div>
             </div>`;
         }).join('');
-
       const dEl = document.getElementById('feed-desktop');
       const mEl = document.getElementById('feed-mobile');
       if (dEl) dEl.innerHTML = html;
       if (mEl) mEl.innerHTML = html;
-
       const badge = document.getElementById('feed-badge');
       if (badge) {
         if (unreadFeed > 0) { badge.classList.remove('hidden'); badge.textContent = unreadFeed; }
@@ -621,30 +743,24 @@
     }
 
     // =========================================================================
-    // MOBILE VIEW SWITCHING (fixed bug)
+    // MOBILE VIEW SWITCHING
     // =========================================================================
     function setMobileView(v) {
       mobileView = v;
-
-      // Hide all panels
       document.getElementById('main-area').style.display = 'none';
       document.getElementById('mob-feed-panel').style.display = 'none';
       document.getElementById('mob-users-panel').style.display = 'none';
 
-      // Show selected
       if (v === 'config') document.getElementById('main-area').style.display = '';
       else if (v === 'feed') document.getElementById('mob-feed-panel').style.display = 'flex';
       else if (v === 'users') document.getElementById('mob-users-panel').style.display = 'flex';
 
-      // Tab styling
       ['config', 'feed', 'users'].forEach(t => {
         const btn = document.getElementById(`mob-tab-${t}`);
         if (!btn) return;
-        if (t === v) {
-          btn.className = 'flex-1 py-3.5 text-center text-sm font-bold text-brand-400 border-t-2 border-brand-500 transition';
-        } else {
-          btn.className = 'flex-1 py-3.5 text-center text-sm font-bold text-d-5 border-t-2 border-transparent transition';
-        }
+        btn.className = t === v
+          ? 'flex-1 py-3.5 text-center text-sm font-bold text-brand-400 border-t-2 border-brand-500 transition'
+          : 'flex-1 py-3.5 text-center text-sm font-bold text-d-5 border-t-2 border-transparent transition';
       });
 
       if (v === 'feed') { unreadFeed = 0; renderFeed(); }
@@ -690,8 +806,7 @@
     // =========================================================================
     // INIT
     // =========================================================================
-    async function init() {
-      // Bot status
+    async function initApp() {
       try {
         const bs = await api.get('/api/bot-status');
         const el = document.getElementById('bot-badge');
@@ -700,13 +815,8 @@
           : `<span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Бот не настроен`;
       } catch (e) { }
 
-      // Bot users
-      try {
-        const bu = await api.get('/api/bot-users');
-        botUsersList = bu.users || [];
-      } catch (e) { }
+      try { botUsersList = (await api.get('/api/bot-users')).users || []; } catch (e) { }
 
-      // Alarms
       try { alarms = (await api.get('/api/alarms')).alarms || []; } catch (e) { }
       if (alarms.length === 0) {
         const r = await api.post('/api/alarms', defaultAlarm());
@@ -716,17 +826,18 @@
       render();
       connectWS();
 
-      // Refresh bot users periodically
       setInterval(async () => {
         try {
-          const bu = await api.get('/api/bot-users');
-          botUsersList = bu.users || [];
+          botUsersList = (await api.get('/api/bot-users')).users || [];
           renderBotUsers();
         } catch (e) { }
       }, 30000);
     }
 
-    init();
+    // Auto-init if welcome already dismissed
+    if (localStorage.getItem('ati_welcome_done') === '1') {
+      initApp();
+    }
   </script>
 </body>
 
